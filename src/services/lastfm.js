@@ -2,16 +2,16 @@
 const API_KEY = import.meta.env.VITE_LASTFM_API_KEY;
 const BASE_URL = 'https://ws.audioscrobbler.com/2.0/';
 
-// Kosmische Nebula-Palette: Violett, Indigo, Magenta, Cyan, zartes Eisblau und strahlendes Weiß
+
 const NEBULA_PALETTE = [
-  '#ff2a70', // Strahlendes Nebula-Pink
-  '#bd00ff', // Kosmisches Violett
-  '#00e5ff', // Stellar-Cyan
-  '#7928ca', // Tiefes Deep-Space Indigo
-  '#ff61d2', // Zartes Magenta
-  '#4df0ff', // Türkis / Eisblau
-  '#f3e8ff', // Funkelnder weiß-violetter Stern
-  '#9d4edd', // Lavendel-Nebel
+  '#ff2a70', 
+  '#bd00ff', 
+  '#00e5ff', 
+  '#7928ca', 
+  '#ff61d2', 
+  '#4df0ff', 
+  '#f3e8ff', 
+  '#9d4edd', 
 ];
 
 function getNebulaColor(name, index) {

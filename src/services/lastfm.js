@@ -2,86 +2,95 @@
 const API_KEY = import.meta.env.VITE_LASTFM_API_KEY;
 const BASE_URL = 'https://ws.audioscrobbler.com/2.0/';
 
-export async function fetchArtistNetwork(rootArtist, limit = 25) {
-  try {
-    // 1. Hole ähnliche Künstler zum Root-Artist
-    const simRes = await fetch(
-      `${BASE_URL}?method=artist.getsimilar&artist=${encodeURIComponent(rootArtist)}&api_key=${API_KEY}&format=json&limit=${limit}`
-    );
-    const simData = await simRes.json();
-    
-    if (!simData.similarartists || !simData.similarartists.artist) {
-      throw new Error('Künstler nicht gefunden oder keine ähnlichen Künstler verfügbar');
-    }
+// Kosmische Nebula-Palette: Violett, Indigo, Magenta, Cyan, zartes Eisblau und strahlendes Weiß
+const NEBULA_PALETTE = [
+  '#ff2a70', // Strahlendes Nebula-Pink
+  '#bd00ff', // Kosmisches Violett
+  '#00e5ff', // Stellar-Cyan
+  '#7928ca', // Tiefes Deep-Space Indigo
+  '#ff61d2', // Zartes Magenta
+  '#4df0ff', // Türkis / Eisblau
+  '#f3e8ff', // Funkelnder weiß-violetter Stern
+  '#9d4edd', // Lavendel-Nebel
+];
 
-    const rawArtists = [
-      { name: rootArtist, match: 1.0 },
-      ...simData.similarartists.artist.map((a) => ({
-        name: a.name,
-        match: parseFloat(a.match) || 0.5,
-      })),
-    ];
-
-    // 2. Metadaten (Top Tags & Listener) für jeden Künstler anreichern
-    const enrichedArtists = await Promise.all(
-      rawArtists.map(async (artist, index) => {
-        try {
-          const infoRes = await fetch(
-            `${BASE_URL}?method=artist.getinfo&artist=${encodeURIComponent(artist.name)}&api_key=${API_KEY}&format=json`
-          );
-          const infoData = await infoRes.json();
-          const info = infoData.artist || {};
-          const tags = info.tags?.tag?.map((t) => t.name) || ['music'];
-          const listeners = parseInt(info.stats?.listeners || '1000', 10);
-
-          // Mathematisches 3D-Mapping (Radius + Cluster-Winkel basierend auf Match & Index)
-          // Root Artist sitzt im Zentrum (0, 0, 0)
-          let x = 0, y = 0, z = 0;
-          if (index !== 0) {
-            const distance = (1.05 - artist.match) * 35; // Höherer Match = näher am Zentrum
-            const phi = Math.acos(-1 + (2 * index) / rawArtists.length);
-            const theta = Math.sqrt(rawArtists.length * Math.PI) * phi;
-
-            x = distance * Math.cos(theta) * Math.sin(phi);
-            y = distance * Math.sin(theta) * Math.sin(phi);
-            z = distance * Math.cos(phi);
-          }
-
-          // Farbcodierung nach Top-Tag
-          const color = getTagColor(tags[0] || 'general');
-
-          return {
-            id: artist.name,
-            name: artist.name,
-            match: artist.match,
-            listeners,
-            tags,
-            topTag: tags[0] || 'Unbekannt',
-            bio: info.bio?.summary ? info.bio.summary.split('<a')[0] : 'Keine Biografie verfügbar.',
-            position: [x, y, z],
-            color,
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    return enrichedArtists.filter(Boolean);
-  } catch (err) {
-    console.error('Fehler beim Abrufen der Last.fm-Daten:', err);
-    throw err;
+function getNebulaColor(name, index) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
+  const colorIndex = Math.abs((hash + index * 3)) % NEBULA_PALETTE.length;
+  return NEBULA_PALETTE[colorIndex];
 }
 
-// Farbcodierung für visuelle Clusterbildung
-function getTagColor(tag) {
-  const t = tag.toLowerCase();
-  if (t.includes('rock') || t.includes('metal')) return '#ff3366';
-  if (t.includes('pop') || t.includes('indie')) return '#33ccff';
-  if (t.includes('electronic') || t.includes('techno') || t.includes('dance')) return '#00ffcc';
-  if (t.includes('hip hop') || t.includes('rap')) return '#ffbb00';
-  if (t.includes('jazz') || t.includes('blues') || t.includes('soul')) return '#cc66ff';
-  if (t.includes('ambient') || t.includes('folk')) return '#66ff66';
-  return '#ffffff';
+export async function fetchArtistNetwork(artistName) {
+  if (!API_KEY) {
+    throw new Error('VITE_LASTFM_API_KEY fehlt in der .env');
+  }
+
+  const simUrl = `${BASE_URL}?method=artist.getsimilar&artist=${encodeURIComponent(artistName)}&api_key=${API_KEY}&format=json&limit=25`;
+  const simRes = await fetch(simUrl);
+  const simData = await simRes.json();
+
+  if (!simData.similarartists || !simData.similarartists.artist) {
+    throw new Error('Künstler nicht gefunden');
+  }
+
+  const rawSimilar = simData.similarartists.artist;
+
+  const rootInfoUrl = `${BASE_URL}?method=artist.getinfo&artist=${encodeURIComponent(artistName)}&api_key=${API_KEY}&format=json`;
+  const rootInfoRes = await fetch(rootInfoUrl);
+  const rootInfoData = await rootInfoRes.json();
+  const rootArtistInfo = rootInfoData.artist || {};
+
+  const rootTags = (rootArtistInfo.tags?.tag || []).map(t => (t.name || t).toLowerCase());
+  
+  // Zentraler Supernova-Kern: Leuchtendes Magenta/Pink
+  const rootColor = '#ff2a70';
+
+  const rootNode = {
+    id: artistName.toLowerCase(),
+    name: artistName,
+    match: 1.0,
+    listeners: parseInt(rootArtistInfo.stats?.listeners || 1000000, 10),
+    tags: rootTags.length ? rootTags : ['music'],
+    color: rootColor,
+    bio: rootArtistInfo.bio?.summary?.replace(/<[^>]*>?/gm, '') || 'Keine Biografie verfügbar.',
+    position: [0, 0, 0]
+  };
+
+  const total = rawSimilar.length;
+  const goldenRatio = (1 + Math.sqrt(5)) / 2;
+
+  const similarNodes = rawSimilar.map((item, index) => {
+    const match = parseFloat(item.match) || (1 - (index / total) * 0.75);
+    const tags = (item.tags?.tag || []).map(t => (t.name || t).toLowerCase());
+
+    // Sphärische Fibonacci-Verteilung: Ergibt einen organischen, dreidimensionalen Sternhaufen
+    const theta = 2 * Math.PI * index / goldenRatio;
+    const phi = Math.acos(1 - 2 * (index + 0.5) / total);
+    
+    // Distanz proportional zur Ähnlichkeit
+    const radius = 12 + (1 - match) * 22;
+
+    const x = radius * Math.sin(phi) * Math.cos(theta);
+    const y = radius * Math.cos(phi) * 0.85;
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+
+    // Abgestimmte kosmische Nuance
+    const artistColor = getNebulaColor(item.name, index);
+
+    return {
+      id: item.name.toLowerCase(),
+      name: item.name,
+      match: match,
+      listeners: parseInt(item.listeners || 500000, 10),
+      tags: tags.length ? tags : rootTags,
+      color: artistColor,
+      bio: `${item.name} teilt musikalische Schnittmengen mit ${artistName}.`,
+      position: [x, y, z]
+    };
+  });
+
+  return [rootNode, ...similarNodes];
 }

@@ -66,7 +66,7 @@ export async function fetchArtistNetwork(artistName) {
     const match = parseFloat(item.match) || (1 - (index / total) * 0.75);
     const tags = (item.tags?.tag || []).map(t => (t.name || t).toLowerCase());
 
-    // Sphärische Fibonacci-Verteilung: Ergibt einen organischen, dreidimensionalen Sternhaufen
+    
     const theta = 2 * Math.PI * index / goldenRatio;
     const phi = Math.acos(1 - 2 * (index + 0.5) / total);
     

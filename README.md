@@ -5,8 +5,6 @@
 
 ---
 
-## Abstract
-...
 
 ## Abstract
 
